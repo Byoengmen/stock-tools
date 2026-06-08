@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한국 주식 평균단가 계산기</title>
+<style>
+  :root {
+    --primary: #1a6ef5;
+    --primary-dark: #1458c8;
+    --danger: #e8243c;
+    --green: #00a86b;
+    --yellow: #f5c842;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #e0e4ea;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --result-bg: #f8faff;
+    --ad-bg: #f0f2f5;
+    --ad-border: #d0d5dd;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* 광고 영역 */
+  .ad-slot {
+    width: 100%;
+    max-width: 860px;
+    margin: 16px auto;
+    padding: 0 16px;
+  }
+  .ad-inner {
+    background: var(--ad-bg);
+    border: 2px dashed var(--ad-border);
+    border-radius: var(--radius);
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.03em;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 860px;
+    padding: 0 16px 32px;
+    flex: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  header p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* 매수 목록 헤더 */
+  .buy-list-header {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 36px;
+    gap: 10px;
+    padding: 0 2px 8px;
+    border-bottom: 1.5px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .buy-list-header span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: right;
+  }
+  .buy-list-header span:first-child { text-align: left; }
+
+  /* 매수 행 */
+  .buy-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 36px;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 2px;
+    border-radius: 8px;
+    transition: background 0.12s;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .buy-row:hover { background: #f6f8fc; }
+
+  .row-label {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .row-label.initial { color: var(--primary); }
+  .row-label.extra { color: var(--danger); }
+
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: 9px 36px 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    background: #fafbfc;
+    text-align: right;
+  }
+  .input-wrap input:focus {
+    border-color: var(--primary);
+    background: #fff;
+  }
+  .input-unit {
+    position: absolute;
+    right: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* 삭제 버튼 */
+  .del-btn {
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .del-btn:hover { border-color: var(--danger); color: var(--danger); background: #fff0f2; }
+  .del-btn:disabled { opacity: 0.25; cursor: default; }
+  .del-btn:disabled:hover { border-color: var(--border); color: var(--muted); background: #fff; }
+
+  .buy-list-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* 합계 행 */
+  .summary-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 36px;
+    gap: 10px;
+    padding: 10px 2px;
+    background: #f0f5ff;
+    border-radius: 8px;
+    margin-top: 4px;
+  }
+  .summary-row .s-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .summary-row .s-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    text-align: right;
+    padding-right: 36px;
+  }
+
+  /* 추가 버튼 */
+  .add-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 11px;
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .add-btn:hover { border-color: var(--danger); color: var(--danger); background: #fff5f5; }
+
+  /* 현재가 입력 */
+  .current-price-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    margin-top: 4px;
+  }
+  .current-price-row .form-group { flex: 1; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+  /* 계산 버튼 */
+  .calc-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--primary);
+    color: #fff;
+    transition: filter 0.15s, transform 0.1s;
+  }
+  .calc-btn:hover { filter: brightness(1.08); }
+  .calc-btn:active { transform: scale(0.98); }
+
+  /* 결과 카드 */
+  .result-card {
+    background: var(--result-bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+  }
+  .result-card.visible { display: block; }
+
+  .result-header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  @media (max-width: 500px) {
+    .result-grid { grid-template-columns: 1fr; }
+    .buy-list-header, .buy-row, .summary-row { grid-template-columns: 72px 1fr 1fr 32px; }
+  }
+
+  .r-cell {
+    padding: 16px 24px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .r-cell:nth-child(even) { border-right: none; }
+  .r-cell .r-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .r-cell .r-value {
+    font-size: 22px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .r-cell .r-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .r-cell .r-value.blue { color: var(--primary); }
+  .r-cell .r-value.red  { color: var(--danger); }
+  .r-cell .r-value.green { color: var(--green); }
+
+  /* 본전 회복 박스 */
+  .breakeven-section {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .breakeven-bar-wrap {
+    margin-top: 10px;
+  }
+  .bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .bar-bg {
+    height: 12px;
+    background: #e0e4ea;
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    min-width: 2px;
+  }
+  .bar-fill.over   { background: var(--green); }
+  .bar-fill.under  { background: var(--danger); }
+
+  /* 수익률 뱃지 */
+  .rate-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .rate-badge.pos { background: #e6f9f2; color: var(--green); }
+  .rate-badge.neg { background: #fff0f2; color: var(--danger); }
+  .rate-badge.zero { background: #f0f2f5; color: var(--muted); }
+
+  .total-invested-row {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-top: 2px solid var(--border);
+  }
+  .total-invested-row .ti-label { font-size: 15px; font-weight: 700; }
+  .total-invested-row .ti-value { font-size: 24px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+
+  footer {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 12px 0 8px;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<!-- 상단 광고 슬롯 -->
+<div class="ad-slot">
+  <div class="ad-inner">📢 광고 영역 (728×90 / 상단 배너)</div>
+</div>
+
+<div class="container">
+
+  <header>
+    <h1>📊 주식 평균단가 계산기</h1>
+    <p>물타기·불타기 시나리오별 평균단가와 수익률을 계산하세요</p>
+  </header>
+
+  <!-- 매수 내역 카드 -->
+  <div class="card">
+    <div class="card-title">매수 내역 입력</div>
+
+    <!-- 컬럼 헤더 -->
+    <div class="buy-list-header">
+      <span>구분</span>
+      <span>매수 가격 (원)</span>
+      <span>매수 수량 (주)</span>
+      <span></span>
+    </div>
+
+    <!-- 행 컨테이너 -->
+    <div id="buy-rows"></div>
+
+    <!-- 실시간 합계 -->
+    <div class="summary-row" id="summary-row">
+      <span class="s-label">합계</span>
+      <span class="s-val" id="s-total-invested">—</span>
+      <span class="s-val" id="s-total-qty">—</span>
+      <span></span>
+    </div>
+
+    <!-- 물타기 추가 버튼 -->
+    <button class="add-btn" onclick="addRow()">＋ 물타기 / 추가 매수 시나리오 추가</button>
+  </div>
+
+  <!-- 현재가 & 계산 카드 -->
+  <div class="card">
+    <div class="card-title">현재가 입력 (선택)</div>
+    <div class="current-price-row">
+      <div class="form-group">
+        <label>현재 주가</label>
+        <div class="input-wrap">
+          <input type="number" id="current-price" min="0" step="1" placeholder="입력 시 수익률 계산">
+          <span class="input-unit">원</span>
+        </div>
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calculate()">평균단가 계산하기</button>
+  </div>
+
+  <!-- 결과 카드 -->
+  <div class="result-card card" id="result-card">
+    <div class="result-header" id="result-header">📈 계산 결과</div>
+    <div class="result-grid">
+      <div class="r-cell">
+        <div class="r-label">새 평균단가</div>
+        <div class="r-value blue" id="r-avg">— 원</div>
+        <div class="r-sub" id="r-avg-sub"></div>
+      </div>
+      <div class="r-cell">
+        <div class="r-label">총 보유 주수</div>
+        <div class="r-value" id="r-qty">— 주</div>
+        <div class="r-sub" id="r-qty-sub"></div>
+      </div>
+      <div class="r-cell" id="r-cell-rate" style="display:none">
+        <div class="r-label">현재가 기준 수익률</div>
+        <div class="r-value" id="r-rate">—</div>
+        <div class="r-sub" id="r-rate-sub"></div>
+      </div>
+      <div class="r-cell" id="r-cell-pnl" style="display:none">
+        <div class="r-label">평가손익</div>
+        <div class="r-value" id="r-pnl">—</div>
+        <div class="r-sub" id="r-pnl-sub"></div>
+      </div>
+    </div>
+
+    <!-- 본전 회복 진행 바 -->
+    <div class="breakeven-section" id="be-section" style="display:none">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:14px; font-weight:700; color:var(--muted)">본전 회복 현황</span>
+        <span id="be-badge" class="rate-badge neg"></span>
+      </div>
+      <div class="breakeven-bar-wrap">
+        <div class="bar-labels">
+          <span id="bar-left">현재가</span>
+          <span id="bar-right">평균단가 (본전)</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill under" id="bar-fill" style="width:50%"></div>
+        </div>
+      </div>
+      <div style="font-size:13px; color:var(--muted); margin-top:8px;" id="be-desc"></div>
+    </div>
+
+    <!-- 총 투자금액 강조 -->
+    <div class="total-invested-row">
+      <span class="ti-label">총 투자금액</span>
+      <span class="ti-value" id="r-total">— 원</span>
+    </div>
+  </div>
+
+  <footer>
+    ※ 이 계산기는 수수료·세금을 포함하지 않은 순수 평균단가 계산입니다.<br>
+    수수료를 포함한 정확한 거래비용은 <a href="stock-fee-calculator.html" style="color:var(--primary)">주식 수수료 계산기</a>를 이용하세요.
+  </footer>
+</div>
+
+<!-- 하단 광고 슬롯 -->
+<div class="ad-slot">
+  <div class="ad-inner">📢 광고 영역 (728×90 / 하단 배너)</div>
+</div>
+
+<script>
+  let rowCount = 0;
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ko-KR');
+  }
+  function fmtF(n, d=2) {
+    return n.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function addRow(isInitial = false) {
+    rowCount++;
+    const id = rowCount;
+    const container = document.getElementById('buy-rows');
+
+    const row = document.createElement('div');
+    row.className = 'buy-row';
+    row.id = `row-${id}`;
+
+    const isFirst = isInitial;
+    const label = isFirst ? '기존 보유' : `물타기 ${rowCount - 1}`;
+    const labelClass = isFirst ? 'initial' : 'extra';
+
+    row.innerHTML = `
+      <span class="row-label ${labelClass}">${label}</span>
+      <div class="input-wrap">
+        <input type="number" id="price-${id}" min="0" step="1" placeholder="0"
+          oninput="updateSummary()" class="price-input">
+        <span class="input-unit">원</span>
+      </div>
+      <div class="input-wrap">
+        <input type="number" id="qty-${id}" min="0" step="1" placeholder="0"
+          oninput="updateSummary()" class="qty-input">
+        <span class="input-unit">주</span>
+      </div>
+      <button class="del-btn" id="del-${id}" onclick="removeRow(${id})" title="삭제" ${isFirst ? 'disabled' : ''}>×</button>
+    `;
+
+    // 구분선 (첫 행 뒤에)
+    if (isFirst) {
+      const div = document.createElement('div');
+      div.className = 'buy-list-divider';
+      div.id = 'initial-divider';
+      container.appendChild(row);
+      container.appendChild(div);
+    } else {
+      container.appendChild(row);
+    }
+
+    updateSummary();
+  }
+
+  function removeRow(id) {
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.remove();
+    updateSummary();
+    renumberRows();
+  }
+
+  function renumberRows() {
+    const container = document.getElementById('buy-rows');
+    const rows = container.querySelectorAll('.buy-row');
+    let extraIdx = 0;
+    rows.forEach((row, i) => {
+      if (i === 0) return;
+      extraIdx++;
+      const label = row.querySelector('.row-label');
+      if (label) label.textContent = `물타기 ${extraIdx}`;
+    });
+  }
+
+  function getRows() {
+    const container = document.getElementById('buy-rows');
+    const rows = container.querySelectorAll('.buy-row');
+    let data = [];
+    rows.forEach(row => {
+      const priceInput = row.querySelector('.price-input');
+      const qtyInput   = row.querySelector('.qty-input');
+      const p = parseFloat(priceInput ? priceInput.value : 0) || 0;
+      const q = parseFloat(qtyInput   ? qtyInput.value   : 0) || 0;
+      data.push({ price: p, qty: q });
+    });
+    return data;
+  }
+
+  function updateSummary() {
+    const data = getRows();
+    const totalQty = data.reduce((s, r) => s + r.qty, 0);
+    const totalInvested = data.reduce((s, r) => s + r.price * r.qty, 0);
+
+    document.getElementById('s-total-qty').textContent =
+      totalQty > 0 ? fmt(totalQty) + ' 주' : '—';
+    document.getElementById('s-total-invested').textContent =
+      totalInvested > 0 ? fmt(totalInvested) + ' 원' : '—';
+  }
+
+  function calculate() {
+    const data = getRows();
+    const validRows = data.filter(r => r.price > 0 && r.qty > 0);
+
+    if (validRows.length === 0) {
+      alert('매수 가격과 수량을 하나 이상 입력해주세요.');
+      return;
+    }
+
+    const totalQty      = validRows.reduce((s, r) => s + r.qty, 0);
+    const totalInvested = validRows.reduce((s, r) => s + r.price * r.qty, 0);
+    const avgPrice      = totalInvested / totalQty;
+
+    const currentPrice = parseFloat(document.getElementById('current-price').value) || 0;
+
+    // 기존 평균단가 (첫 행만)
+    const firstValid = data.find(r => r.price > 0 && r.qty > 0);
+    const origAvg = firstValid ? firstValid.price : 0;
+
+    // 결과 채우기
+    document.getElementById('r-avg').textContent = fmt(avgPrice) + ' 원';
+    document.getElementById('r-avg-sub').textContent =
+      origAvg > 0 && validRows.length > 1
+        ? `기존 ${fmt(origAvg)}원 → ${avgPrice < origAvg ? '▼ 낮아짐' : '▲ 높아짐'}`
+        : '';
+
+    document.getElementById('r-qty').textContent = fmt(totalQty) + ' 주';
+    document.getElementById('r-qty-sub').textContent =
+      validRows.length > 1 ? `${validRows.length}번 매수` : '최초 매수';
+
+    document.getElementById('r-total').textContent = fmt(totalInvested) + ' 원';
+
+    // 현재가 있을 때
+    const rCellRate = document.getElementById('r-cell-rate');
+    const rCellPnl  = document.getElementById('r-cell-pnl');
+    const beSection = document.getElementById('be-section');
+
+    if (currentPrice > 0) {
+      rCellRate.style.display = '';
+      rCellPnl.style.display  = '';
+
+      const rate   = (currentPrice - avgPrice) / avgPrice * 100;
+      const pnl    = (currentPrice - avgPrice) * totalQty;
+      const evalAmt = currentPrice * totalQty;
+
+      const rateEl = document.getElementById('r-rate');
+      rateEl.textContent = (rate >= 0 ? '+' : '') + fmtF(rate) + '%';
+      rateEl.className = 'r-value ' + (rate > 0 ? 'green' : rate < 0 ? 'red' : '');
+      document.getElementById('r-rate-sub').innerHTML =
+        `평가금액 ${fmt(evalAmt)}원`;
+
+      const pnlEl = document.getElementById('r-pnl');
+      pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl) + ' 원';
+      pnlEl.className = 'r-value ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
+      document.getElementById('r-pnl-sub').textContent =
+        `주당 ${(pnl >= 0 ? '+' : '') + fmt((currentPrice - avgPrice))}원`;
+
+      // 본전 회복 바
+      beSection.style.display = '';
+      const beBadge = document.getElementById('be-badge');
+      const barFill = document.getElementById('bar-fill');
+      const beDesc  = document.getElementById('be-desc');
+
+      if (rate >= 0) {
+        // 이미 수익 중
+        const fillPct = Math.min(100, (currentPrice / avgPrice) * 100 - 100 + 50);
+        barFill.style.width = '100%';
+        barFill.className = 'bar-fill over';
+        beBadge.textContent = '✅ 수익 중';
+        beBadge.className = 'rate-badge pos';
+        document.getElementById('bar-left').textContent = `평균단가 ${fmt(avgPrice)}원`;
+        document.getElementById('bar-right').textContent = `현재가 ${fmt(currentPrice)}원`;
+        beDesc.textContent = `평균단가 대비 현재가가 ${fmtF(rate)}% 높습니다. 수익 중입니다.`;
+      } else {
+        // 손실 중 — 본전 회복 필요 상승률
+        const recoverRate = (avgPrice - currentPrice) / currentPrice * 100;
+        const fillPct = Math.max(3, (currentPrice / avgPrice) * 100);
+        barFill.style.width = fillPct + '%';
+        barFill.className = 'bar-fill under';
+        beBadge.textContent = `본전까지 +${fmtF(recoverRate)}% 필요`;
+        beBadge.className = 'rate-badge neg';
+        document.getElementById('bar-left').textContent = `현재가 ${fmt(currentPrice)}원`;
+        document.getElementById('bar-right').textContent = `평균단가 ${fmt(avgPrice)}원`;
+        beDesc.textContent =
+          `현재가에서 ${fmtF(recoverRate)}% 상승해야 본전입니다. ` +
+          `(${fmt(currentPrice)}원 → ${fmt(avgPrice)}원)`;
+      }
+
+    } else {
+      rCellRate.style.display = 'none';
+      rCellPnl.style.display  = 'none';
+      beSection.style.display = 'none';
+    }
+
+    // 물타기 수가 2개 이상일 때 결과 헤더 업데이트
+    document.getElementById('result-header').textContent =
+      validRows.length >= 2
+        ? `📊 ${validRows.length}회 매수 기준 계산 결과`
+        : '📊 계산 결과';
+
+    const rc = document.getElementById('result-card');
+    rc.classList.add('visible');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // 초기 행 2개 (기존 보유 + 추가 매수 1)
+  addRow(true);   // 기존 보유
+  addRow(false);  // 물타기 1
+</script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한국 주식 수수료 계산기</title>
+<style>
+  :root {
+    --primary: #1a6ef5;
+    --primary-dark: #1458c8;
+    --buy: #e8243c;
+    --sell: #1a6ef5;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #e0e4ea;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --result-bg: #f8faff;
+    --ad-bg: #f0f2f5;
+    --ad-border: #d0d5dd;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* 광고 영역 */
+  .ad-slot {
+    width: 100%;
+    max-width: 800px;
+    margin: 16px auto;
+    padding: 0 16px;
+  }
+  .ad-inner {
+    background: var(--ad-bg);
+    border: 2px dashed var(--ad-border);
+    border-radius: var(--radius);
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.03em;
+  }
+
+  /* 메인 컨테이너 */
+  .container {
+    width: 100%;
+    max-width: 800px;
+    padding: 0 16px 32px;
+    flex: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  header p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* 카드 */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* 매수/매도 토글 */
+  .toggle-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .toggle-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s;
+    background: var(--card);
+    color: var(--muted);
+  }
+  .toggle-btn.buy.active {
+    border-color: var(--buy);
+    background: #fff0f2;
+    color: var(--buy);
+  }
+  .toggle-btn.sell.active {
+    border-color: var(--sell);
+    background: #f0f5ff;
+    color: var(--sell);
+  }
+
+  /* 입력 폼 */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 500px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: 11px 40px 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    background: #fafbfc;
+    text-align: right;
+  }
+  .input-wrap input:focus {
+    border-color: var(--primary);
+    background: #fff;
+  }
+  .input-unit {
+    position: absolute;
+    right: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* 계산 버튼 */
+  .calc-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.1s;
+    color: #fff;
+  }
+  .calc-btn.buy-mode { background: var(--buy); }
+  .calc-btn.sell-mode { background: var(--sell); }
+  .calc-btn:hover { filter: brightness(1.08); }
+  .calc-btn:active { transform: scale(0.98); }
+
+  /* 결과 카드 */
+  .result-card {
+    background: var(--result-bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+  }
+  .result-card.visible { display: block; }
+
+  .result-header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .result-rows { padding: 8px 0; }
+
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 24px;
+    font-size: 15px;
+    transition: background 0.1s;
+  }
+  .result-row:hover { background: #eef2fb; }
+  .result-row .label { color: var(--muted); }
+  .result-row .value { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .result-row .value.red { color: #e8243c; }
+  .result-row .value.blue { color: #1a6ef5; }
+
+  .result-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  .result-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: #fff;
+    font-size: 16px;
+    border-top: 2px solid var(--border);
+  }
+  .result-total .label { font-weight: 700; }
+  .result-total .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .result-total .value.red { color: #e8243c; }
+  .result-total .value.blue { color: #1a6ef5; }
+
+  .breakeven-box {
+    margin: 0 16px 16px;
+    background: #fff8e6;
+    border: 1.5px solid #f5c842;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .breakeven-box .be-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #a07a00;
+  }
+  .breakeven-box .be-sub {
+    font-size: 12px;
+    color: #b89400;
+    margin-top: 2px;
+  }
+  .breakeven-box .be-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: #a07a00;
+    font-variant-numeric: tabular-nums;
+  }
+
+  footer {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 12px 0 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 상단 광고 슬롯 -->
+<div class="ad-slot">
+  <div class="ad-inner">📢 광고 영역 (728×90 / 상단 배너)</div>
+</div>
+
+<div class="container">
+
+  <header>
+    <h1>🇰🇷 한국 주식 수수료 계산기</h1>
+    <p>매수·매도 수수료, 유관기관 제비용, 증권거래세를 한눈에 계산하세요</p>
+  </header>
+
+  <!-- 입력 카드 -->
+  <div class="card">
+    <div class="card-title">거래 정보 입력</div>
+
+    <!-- 매수/매도 토글 -->
+    <div class="toggle-group">
+      <button class="toggle-btn buy active" id="btn-buy" onclick="setMode('buy')">매수</button>
+      <button class="toggle-btn sell" id="btn-sell" onclick="setMode('sell')">매도</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>증권사 수수료율</label>
+        <div class="input-wrap">
+          <input type="number" id="fee-rate" value="0.015" step="0.001" min="0" placeholder="0.015">
+          <span class="input-unit">%</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>주당 가격</label>
+        <div class="input-wrap">
+          <input type="number" id="price" value="" step="1" min="0" placeholder="0">
+          <span class="input-unit">원</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>수량</label>
+        <div class="input-wrap">
+          <input type="number" id="qty" value="" step="1" min="0" placeholder="0">
+          <span class="input-unit">주</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>거래 대금</label>
+        <div class="input-wrap">
+          <input type="text" id="total-display" readonly placeholder="자동 계산"
+            style="background:#f0f2f5; color:var(--muted); cursor:default; text-align:right;">
+          <span class="input-unit">원</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn buy-mode" id="calc-btn" onclick="calculate()">매수 수수료 계산하기</button>
+  </div>
+
+  <!-- 결과 카드 -->
+  <div class="result-card card" id="result-card">
+    <div class="result-header" id="result-title">계산 결과</div>
+    <div class="result-rows">
+      <div class="result-row">
+        <span class="label">거래 대금</span>
+        <span class="value" id="r-trade">0 원</span>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-row">
+        <span class="label">증권사 수수료</span>
+        <span class="value red" id="r-broker">0 원</span>
+      </div>
+      <div class="result-row">
+        <span class="label">유관기관 제비용 <small style="font-size:11px;color:var(--muted)">(0.003996%)</small></span>
+        <span class="value red" id="r-related">0 원</span>
+      </div>
+      <div class="result-row" id="row-tax">
+        <span class="label">증권거래세 <small style="font-size:11px;color:var(--muted)">(0.18%)</small></span>
+        <span class="value red" id="r-tax">0 원</span>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-row">
+        <span class="label">총 거래비용</span>
+        <span class="value red" id="r-total-fee">0 원</span>
+      </div>
+    </div>
+    <div class="result-total">
+      <span class="label" id="r-final-label">실제 매수 총액</span>
+      <span class="value red" id="r-final">0 원</span>
+    </div>
+    <div class="breakeven-box" id="breakeven-box">
+      <div>
+        <div class="be-label">📊 손익분기점 (최소 매도가)</div>
+        <div class="be-sub">이 가격 이상에 팔아야 본전입니다</div>
+      </div>
+      <div class="be-value" id="r-breakeven">0 원</div>
+    </div>
+  </div>
+
+  <footer>
+    ※ 유관기관 제비용은 한국거래소·예탁결제원·금융투자협회 부과 기준(0.003996%)이며, 증권거래세는 코스피·코스닥 기준(0.18%)입니다.<br>
+    실제 적용 세율은 증권사·시장·종목에 따라 다를 수 있습니다.
+  </footer>
+</div>
+
+<!-- 하단 광고 슬롯 -->
+<div class="ad-slot">
+  <div class="ad-inner">📢 광고 영역 (728×90 / 하단 배너)</div>
+</div>
+
+<script>
+  let mode = 'buy';
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btn-buy').classList.toggle('active', m === 'buy');
+    document.getElementById('btn-sell').classList.toggle('active', m === 'sell');
+    const btn = document.getElementById('calc-btn');
+    btn.textContent = m === 'buy' ? '매수 수수료 계산하기' : '매도 수수료 계산하기';
+    btn.className = 'calc-btn ' + (m === 'buy' ? 'buy-mode' : 'sell-mode');
+    updateTotalDisplay();
+    const rc = document.getElementById('result-card');
+    if (rc.classList.contains('visible')) calculate();
+  }
+
+  function updateTotalDisplay() {
+    const price = parseFloat(document.getElementById('price').value) || 0;
+    const qty = parseFloat(document.getElementById('qty').value) || 0;
+    document.getElementById('total-display').value = price && qty ? fmt(price * qty) : '';
+  }
+
+  document.getElementById('price').addEventListener('input', updateTotalDisplay);
+  document.getElementById('qty').addEventListener('input', updateTotalDisplay);
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ko-KR');
+  }
+  function fmtPrice(n) {
+    return Math.ceil(n).toLocaleString('ko-KR');
+  }
+
+  function calculate() {
+    const feeRate = parseFloat(document.getElementById('fee-rate').value) || 0;
+    const price   = parseFloat(document.getElementById('price').value) || 0;
+    const qty     = parseFloat(document.getElementById('qty').value) || 0;
+
+    if (price <= 0 || qty <= 0) {
+      alert('주당 가격과 수량을 입력해주세요.');
+      return;
+    }
+
+    const tradeAmt   = price * qty;
+    const brokerFee  = tradeAmt * (feeRate / 100);
+    const relatedFee = tradeAmt * 0.003996 / 100;
+    const tax        = mode === 'sell' ? tradeAmt * 0.18 / 100 : 0;
+    const totalFee   = brokerFee + relatedFee + tax;
+
+    let finalAmt, bePrice;
+    if (mode === 'buy') {
+      finalAmt = tradeAmt + totalFee;
+      // 손익분기점: 매수 총액 = 매도 수령액
+      // buyTotal = sellPrice * qty * (1 - sellFeeRate - relatedRate - taxRate)
+      const sellDeductRate = (feeRate / 100) + (0.003996 / 100) + (0.18 / 100);
+      bePrice = finalAmt / (qty * (1 - sellDeductRate));
+    } else {
+      finalAmt = tradeAmt - totalFee;
+      bePrice = null;
+    }
+
+    // 결과 표시
+    document.getElementById('r-trade').textContent    = fmt(tradeAmt) + ' 원';
+    document.getElementById('r-broker').textContent   = fmt(brokerFee) + ' 원';
+    document.getElementById('r-related').textContent  = fmt(relatedFee) + ' 원';
+    document.getElementById('r-tax').textContent      = fmt(tax) + ' 원';
+    document.getElementById('r-total-fee').textContent = fmt(totalFee) + ' 원';
+
+    const rowTax = document.getElementById('row-tax');
+    rowTax.style.opacity = mode === 'sell' ? '1' : '0.35';
+
+    const finalLabel = document.getElementById('r-final-label');
+    const finalVal   = document.getElementById('r-final');
+    if (mode === 'buy') {
+      finalLabel.textContent = '실제 매수 총액';
+      finalVal.className = 'value red';
+      finalVal.textContent = fmt(finalAmt) + ' 원';
+    } else {
+      finalLabel.textContent = '실수령액 (세후)';
+      finalVal.className = 'value blue';
+      finalVal.textContent = fmt(finalAmt) + ' 원';
+    }
+
+    const beBox = document.getElementById('breakeven-box');
+    if (mode === 'buy' && bePrice) {
+      beBox.style.display = 'flex';
+      document.getElementById('r-breakeven').textContent = fmtPrice(bePrice) + ' 원';
+      const diff = Math.ceil(bePrice) - price;
+      document.querySelector('.be-sub').textContent =
+        `현재가 대비 +${fmt(diff)}원 (${((diff/price)*100).toFixed(2)}%) 이상`;
+    } else {
+      beBox.style.display = 'none';
+    }
+
+    document.getElementById('result-title').textContent =
+      mode === 'buy' ? '📈 매수 계산 결과' : '📉 매도 계산 결과';
+
+    const rc = document.getElementById('result-card');
+    rc.classList.add('visible');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+</script>
+</body>
+</html>
